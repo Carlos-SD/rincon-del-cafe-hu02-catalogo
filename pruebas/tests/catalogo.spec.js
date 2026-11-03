@@ -18,7 +18,8 @@ test.describe('HU-02 Catálogo · filtro por precio máximo', () => {
   // resultados coincide con los productos que se ven.
   for (const caso of FILTROS_VALIDOS) {
     test(`${caso.id} precio máximo ${caso.precioMax}: ${caso.descripcion} @HU02 @acceptanceTest`, async ({ catalogo }) => {
-      const esperados = productosHasta(caso.precioMax);
+      // FALLO A PROPÓSITO: espera un producto de más para comprobar que el pipeline bloquea.
+      const esperados = productosHasta(caso.precioMax + 2000);
 
       await catalogo.filtrar({ precioMax: caso.precioMax });
 
