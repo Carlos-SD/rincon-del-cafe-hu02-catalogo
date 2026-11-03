@@ -1,0 +1,94 @@
+# Pipeline del taller: levanta El Rincón del Café en el puerto 3000 y ejecuta
+# las pruebas de aceptación (@acceptanceTest). Queda en verde solo si todas pasan.
+# El despliegue a Render no hace parte del taller.
+name: Pruebas de aceptación
+
+# Cuándo corre: push o pull request hacia main, y a mano desde la pestaña Actions.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Mínimo privilegio: el token solo puede leer el código.
+permissions:
+  contents: read
+
+jobs:
+  pruebas-aceptacion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # Baja el código del commit (equivale a un git clone).
+      - name: Descargar el repositorio
+        uses: actions/checkout@v7
+
+      # Instala Node y guarda en caché lo que npm descarga, usando los dos lockfiles como clave.
+      - name: Instalar Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            pruebas/package-lock.json
+
+      # npm ci instala exactamente lo que dice cada package-lock.json.
+      - name: Instalar dependencias de la app
+        working-directory: app
+        run: npm ci
+
+      - name: Instalar dependencias de las pruebas
+        working-directory: pruebas
+        run: npm ci
+
+      # La máquina virtual empieza vacía: hay que bajar Chromium y sus librerías del sistema.
+      - name: Instalar Chromium para Playwright
+        working-directory: pruebas
+        run: npx playwright install --with-deps chromium
+
+      # El & deja la app corriendo en segundo plano para los pasos siguientes.
+      - name: Levantar la app en el puerto 3000
+        working-directory: app
+        env:
+          PORT: 3000
+        run: nohup npm start > app.log 2>&1 &
+
+      # No probamos hasta que la app responda (máximo 30 intentos de 1 segundo).
+      - name: Esperar a que la app responda
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 > /dev/null; then
+              echo "La app respondió en el intento $i"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "La app no respondió en 30 segundos"
+          cat app/app.log
+          exit 1
+
+      # Solo los casos con @acceptanceTest en el título bloquean el pipeline.
+      # Sin continue-on-error: si un caso falla, el paso falla y el job queda en rojo.
+      - name: Ejecutar pruebas de aceptación
+        working-directory: pruebas
+        run: npx playwright test --grep @acceptanceTest
+
+      # if: always() sube el reporte aunque las pruebas fallen, que es cuando más se necesita.
+      - name: Subir reporte de Playwright
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: pruebas/playwright-report/
+          retention-days: 30
+
+      - name: Subir log de la app
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-log
+          path: app/app.log
+          retention-days: 30

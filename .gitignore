@@ -1,0 +1,11 @@
+node_modules/
+.env
+
+# Resultados de Playwright
+pruebas/playwright-report/
+pruebas/test-results/
+pruebas/blob-report/
+pruebas/playwright/.cache/
+
+app/app.log
+.DS_Store

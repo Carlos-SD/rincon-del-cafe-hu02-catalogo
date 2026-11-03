@@ -1,0 +1,16 @@
+{
+  "name": "pruebas-cafe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas de aceptación de la HU-02 (Catálogo) de El Rincón del Café",
+  "scripts": {
+    "test": "playwright test",
+    "test:aceptacion": "playwright test --grep @acceptanceTest",
+    "test:bug": "playwright test --grep @bug",
+    "reporte": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}
